@@ -29,7 +29,7 @@ class Person(BaseModel):
     phone: int | None = None
     gender: str | None = None
     pronoun: str | None = None
-    password: str
+    password: str | None = None  # Not returned in profile responses for security
     no_email: bool = False
     site_admin: bool | None = None
     accesess: int | None = None  # Note: typo in API schema

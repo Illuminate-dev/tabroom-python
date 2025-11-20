@@ -1,21 +1,34 @@
 """Authentication utilities for Tabroom API."""
 
-import base64
 
+class CookieAuth:
+    """Cookie-based authentication handler for Tabroom."""
 
-class BasicAuth:
-    """Basic HTTP authentication handler."""
+    COOKIE_NAME = "TabroomToken"
 
-    def __init__(self, username: str, password: str):
-        self.username = username
-        self.password = password
+    def __init__(self, token: str | None = None):
+        """
+        Initialize cookie auth.
 
-    def get_auth_header(self) -> str:
-        """Generate the Authorization header value for basic auth."""
-        credentials = f"{self.username}:{self.password}"
-        encoded = base64.b64encode(credentials.encode()).decode()
-        return f"Basic {encoded}"
+        Args:
+            token: Optional existing TabroomToken value
+        """
+        self.token = token
 
-    def get_headers(self) -> dict[str, str]:
-        """Get headers dict with authentication."""
-        return {"Authorization": self.get_auth_header()}
+    def set_token(self, token: str) -> None:
+        """Set the authentication token."""
+        self.token = token
+
+    def clear_token(self) -> None:
+        """Clear the authentication token."""
+        self.token = None
+
+    def is_authenticated(self) -> bool:
+        """Check if we have an authentication token."""
+        return self.token is not None
+
+    def get_cookies(self) -> dict[str, str]:
+        """Get cookies dict for requests."""
+        if self.token:
+            return {self.COOKIE_NAME: self.token}
+        return {}

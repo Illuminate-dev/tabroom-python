@@ -2,10 +2,10 @@
 
 from typing import Any, TypeVar
 
-import httpx
+import requests
 from pydantic import BaseModel, ValidationError
 
-from .auth import BasicAuth
+from .auth import CookieAuth
 from .exceptions import (
     TabroomAPIError,
     TabroomAuthError,
@@ -20,35 +20,93 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class BaseClient:
-    """Base HTTP client with authentication and error handling."""
+    """Base HTTP client with cookie-based authentication and error handling."""
 
     def __init__(
         self,
-        base_url: str = "https://api.tabroom.com/v1",
+        api_base_url: str = "https://api.tabroom.com/v1",
+        auth_base_url: str = "https://www.tabroom.com",
         username: str | None = None,
         password: str | None = None,
+        token: str | None = None,
         timeout: float = 30.0,
+        auto_login: bool = True,
     ):
         """
         Initialize the base client.
 
         Args:
-            base_url: Base URL for the API
-            username: Username for basic auth
-            password: Password for basic auth
+            api_base_url: Base URL for API endpoints
+            auth_base_url: Base URL for authentication
+            username: Username for login
+            password: Password for login
+            token: Optional existing TabroomToken (skips login if provided)
             timeout: Request timeout in seconds
+            auto_login: Automatically login if username/password provided
         """
-        self.base_url = base_url.rstrip("/")
+        self.api_base_url = api_base_url.rstrip("/")
+        self.auth_base_url = auth_base_url.rstrip("/")
         self.timeout = timeout
-        self.auth = BasicAuth(username, password) if username and password else None
-        self._client = httpx.Client(timeout=timeout)
+        self.username = username
+        self.password = password
+
+        self.auth = CookieAuth(token=token)
+        self._client = requests.Session()
+        self._client.timeout = timeout
+
+        # Auto-login if credentials provided and no token
+        if auto_login and username and password and not token:
+            self.login(username, password)
+
+    def login(self, username: str, password: str) -> None:
+        """
+        Log in to Tabroom and obtain authentication cookie.
+
+        Args:
+            username: Username
+            password: Password
+
+        Raises:
+            TabroomAuthError: If login fails
+        """
+        login_url = f"{self.auth_base_url}/user/login/login_save.mhtml"
+
+        try:
+            response = self._client.post(
+                login_url,
+                data={"username": username, "password": password},
+            )
+
+            # Check if login was successful by looking for the cookie in the session
+            if CookieAuth.COOKIE_NAME in self._client.cookies:
+                token = self._client.cookies[CookieAuth.COOKIE_NAME]
+                self.auth.set_token(token)
+                self.username = username
+                self.password = password
+            else:
+                # Login failed - no cookie received
+                raise TabroomAuthError(
+                    "Login failed: No authentication cookie received",
+                    response.status_code,
+                )
+
+        except requests.RequestException as e:
+            raise TabroomAuthError(f"Login request failed: {str(e)}")
+
+    def logout(self) -> None:
+        """Clear authentication token."""
+        self.auth.clear_token()
+
+    def is_authenticated(self) -> bool:
+        """Check if client is authenticated."""
+        return self.auth.is_authenticated()
 
     def _get_headers(self) -> dict[str, str]:
         """Get headers for requests."""
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        if self.auth:
-            headers.update(self.auth.get_headers())
-        return headers
+        return {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
 
     def _handle_error(self, response: httpx.Response) -> None:
         """Handle error responses from the API."""
@@ -88,7 +146,7 @@ class BaseClient:
             method: HTTP method (GET, POST, etc.)
             path: API endpoint path
             response_model: Pydantic model to parse response into
-            **kwargs: Additional arguments to pass to httpx request
+            **kwargs: Additional arguments to pass to requests
 
         Returns:
             Parsed response data
@@ -96,20 +154,29 @@ class BaseClient:
         Raises:
             TabroomError: On API errors
         """
-        url = f"{self.base_url}/{path.lstrip('/')}"
+        url = f"{self.api_base_url}/{path.lstrip('/')}"
         headers = self._get_headers()
 
         # Merge custom headers if provided
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
 
+        # Add authentication cookies
+        cookies = self.auth.get_cookies()
+        if "cookies" in kwargs:
+            cookies.update(kwargs.pop("cookies"))
+
+        # Set timeout if not provided
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = self.timeout
+
         try:
             response = self._client.request(
-                method, url, headers=headers, **kwargs
+                method, url, headers=headers, cookies=cookies, **kwargs
             )
 
             # Check for errors
-            if not response.is_success:
+            if not response.ok:
                 self._handle_error(response)
 
             # Handle empty responses
@@ -127,7 +194,7 @@ class BaseClient:
 
             return data
 
-        except httpx.HTTPError as e:
+        except requests.RequestException as e:
             raise TabroomAPIError(f"HTTP error occurred: {str(e)}")
         except ValidationError as e:
             raise TabroomValidationError(f"Response validation failed: {str(e)}")

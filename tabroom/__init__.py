@@ -56,25 +56,34 @@ class TabroomClient:
 
     def __init__(
         self,
-        base_url: str = "https://api.tabroom.com/v1",
+        api_base_url: str = "https://api.tabroom.com/v1",
+        auth_base_url: str = "https://www.tabroom.com",
         username: str | None = None,
         password: str | None = None,
+        token: str | None = None,
         timeout: float = 30.0,
+        auto_login: bool = True,
     ):
         """
         Initialize the Tabroom API client.
 
         Args:
-            base_url: Base URL for the API (default: https://api.tabroom.com/v1)
-            username: Username for basic HTTP authentication
-            password: Password for basic HTTP authentication
+            api_base_url: Base URL for API endpoints (default: https://api.tabroom.com/v1)
+            auth_base_url: Base URL for authentication (default: https://www.tabroom.com)
+            username: Username for login
+            password: Password for login
+            token: Optional existing TabroomToken (skips login if provided)
             timeout: Request timeout in seconds (default: 30.0)
+            auto_login: Automatically login if username/password provided (default: True)
         """
         self._base_client = BaseClient(
-            base_url=base_url,
+            api_base_url=api_base_url,
+            auth_base_url=auth_base_url,
             username=username,
             password=password,
+            token=token,
             timeout=timeout,
+            auto_login=auto_login,
         )
 
         # Initialize resources lazily
@@ -87,6 +96,29 @@ class TabroomClient:
         self._share_resource: ShareResource | None = None
         self._payment_resource: PaymentResource | None = None
         self._system_resource: SystemResource | None = None
+
+    def login(self, username: str, password: str) -> None:
+        """
+        Log in to Tabroom.
+
+        Args:
+            username: Username
+            password: Password
+        """
+        self._base_client.login(username, password)
+
+    def logout(self) -> None:
+        """Log out and clear authentication."""
+        self._base_client.logout()
+
+    def is_authenticated(self) -> bool:
+        """Check if client is authenticated."""
+        return self._base_client.is_authenticated()
+
+    @property
+    def token(self) -> str | None:
+        """Get the current authentication token."""
+        return self._base_client.auth.token
 
     @property
     def user(self) -> UserResource:

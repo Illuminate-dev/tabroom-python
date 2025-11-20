@@ -9,11 +9,13 @@ def test_client_initialization():
     """Test that the client initializes correctly."""
     client = TabroomClient(
         username="test@example.com",
-        password="test_password"
+        password="test_password",
+        auto_login=False
     )
 
     assert client is not None
-    assert client._base_client.base_url == "https://api.tabroom.com/v1"
+    assert client._base_client.api_base_url == "https://api.tabroom.com/v1"
+    assert not client.is_authenticated()
     client.close()
 
 
@@ -21,24 +23,34 @@ def test_client_custom_base_url():
     """Test client with custom base URL."""
     custom_url = "https://custom.api.com/v1"
     client = TabroomClient(
-        base_url=custom_url,
+        api_base_url=custom_url,
         username="test@example.com",
-        password="test_password"
+        password="test_password",
+        auto_login=False
     )
 
-    assert client._base_client.base_url == custom_url
+    assert client._base_client.api_base_url == custom_url
+    client.close()
+
+
+def test_client_with_token():
+    """Test client initialization with existing token."""
+    client = TabroomClient(token="fake_token")
+
+    assert client.is_authenticated()
+    assert client.token == "fake_token"
     client.close()
 
 
 def test_client_context_manager():
     """Test that client works as context manager."""
-    with TabroomClient(username="test", password="test") as client:
+    with TabroomClient(username="test", password="test", auto_login=False) as client:
         assert client is not None
 
 
 def test_resource_lazy_loading():
     """Test that resources are loaded lazily."""
-    client = TabroomClient(username="test", password="test")
+    client = TabroomClient(username="test", password="test", auto_login=False)
 
     # Resources should be None initially
     assert client._user_resource is None
@@ -54,7 +66,7 @@ def test_resource_lazy_loading():
 
 def test_all_resources_accessible():
     """Test that all resource properties are accessible."""
-    client = TabroomClient(username="test", password="test")
+    client = TabroomClient(username="test", password="test", auto_login=False)
 
     # Just test that we can access all resource properties
     assert client.user is not None

@@ -4,13 +4,22 @@ Basic usage examples for the Tabroom API client.
 
 from tabroom import TabroomClient, TabroomError
 
-# Initialize the client with credentials
+# Option 1: Initialize with credentials (auto-login)
 client = TabroomClient(
     username="your_email@example.com",
     password="your_password"
 )
+print(f"Authenticated: {client.is_authenticated()}")
+print(f"Token: {client.token}")
 
-# Or use as a context manager (automatically closes connection)
+# Option 2: Initialize with existing token (no login needed)
+client = TabroomClient(token="your_existing_token")
+
+# Option 3: Initialize without credentials, login later
+client = TabroomClient()
+client.login("your_email@example.com", "your_password")
+
+# Option 4: Use as a context manager (automatically closes connection)
 with TabroomClient(username="your_email@example.com", password="your_password") as client:
     try:
         # Get your user profile
