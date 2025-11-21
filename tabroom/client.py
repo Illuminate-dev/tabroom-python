@@ -26,7 +26,7 @@ class BaseClient:
     def __init__(
         self,
         api_base_url: str = "https://api.tabroom.com/v1",
-        auth_base_url: str = "https://www.tabroom.com",
+        site_base_url: str = "https://www.tabroom.com",
         username: str | None = None,
         password: str | None = None,
         token: str | None = None,
@@ -38,7 +38,7 @@ class BaseClient:
 
         Args:
             api_base_url: Base URL for API endpoints
-            auth_base_url: Base URL for authentication
+            site_base_url: Base URL for the main site
             username: Username for login
             password: Password for login
             token: Optional existing TabroomToken (skips login if provided)
@@ -46,7 +46,7 @@ class BaseClient:
             auto_login: Automatically login if username/password provided
         """
         self.api_base_url = api_base_url.rstrip("/")
-        self.auth_base_url = auth_base_url.rstrip("/")
+        self.site_base_url = site_base_url.rstrip("/")
         self.timeout = timeout
         self.username = username
         self.password = password
@@ -73,7 +73,7 @@ class BaseClient:
         Raises:
             TabroomAuthError: If login fails
         """
-        login_url = f"{self.auth_base_url}/user/login/login_save.mhtml"
+        login_url = f"{self.site_base_url}/user/login/login_save.mhtml"
 
         try:
             response = self._client.post(
@@ -115,7 +115,7 @@ class BaseClient:
             "Accept": "application/json",
         }
 
-    def _handle_error(self, response: httpx.Response) -> None:
+    def _handle_error(self, response: requests.Response) -> None:
         """Handle error responses from the API."""
         # Try to parse error message from response
         try:
@@ -174,9 +174,7 @@ class BaseClient:
 
         try:
             # Session automatically includes cookies
-            response = self._client.request(
-                method, url, headers=headers, **kwargs
-            )
+            response = self._client.request(method, url, headers=headers, **kwargs)
 
             # Check for errors
             if not response.ok:
@@ -201,6 +199,27 @@ class BaseClient:
             raise TabroomAPIError(f"HTTP error occurred: {str(e)}")
         except ValidationError as e:
             raise TabroomValidationError(f"Response validation failed: {str(e)}")
+
+    def request_html(self, path: str, method: str, **kwargs: Any) -> str | None:
+        """Returns html content of a webpath"""
+        url = f"{self.site_base_url}/{path.lstrip('/')}"
+        headers = self._get_headers()
+
+        if "headers" in kwargs:
+            kwargs.update(kwargs.pop("headers"))
+
+        try:
+            response = self._client.request(method, url, headers=headers, **kwargs)
+
+            if not response.ok:
+                self._handle_error(response)
+
+            if response.status_code == 204 or not response.content:
+                return None
+
+            return str(response.content)
+        except requests.RequestException as e:
+            raise TabroomAPIError(f"HTTP error occured: {str(e)}")
 
     def get(
         self, path: str, response_model: type[T] | None = None, **kwargs: Any

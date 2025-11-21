@@ -2,6 +2,7 @@
 
 from .access import AccessResource
 from .caselist import CaselistResource
+from .extra import ExtraResource
 from .nsda import NsdaResource
 from .payment import PaymentResource
 from .public import PublicResource
@@ -20,4 +21,5 @@ __all__ = [
     "ShareResource",
     "PaymentResource",
     "SystemResource",
+    "ExtraResource",
 ]

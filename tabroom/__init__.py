@@ -33,6 +33,7 @@ from .models import (
 from .resources import (
     AccessResource,
     CaselistResource,
+    ExtraResource,
     NsdaResource,
     PaymentResource,
     PublicResource,
@@ -41,6 +42,7 @@ from .resources import (
     TabResource,
     UserResource,
 )
+from .types import DebateEvent
 
 
 class TabroomClient:
@@ -57,7 +59,7 @@ class TabroomClient:
     def __init__(
         self,
         api_base_url: str = "https://api.tabroom.com/v1",
-        auth_base_url: str = "https://www.tabroom.com",
+        site_base_url: str = "https://www.tabroom.com",
         username: str | None = None,
         password: str | None = None,
         token: str | None = None,
@@ -78,7 +80,7 @@ class TabroomClient:
         """
         self._base_client = BaseClient(
             api_base_url=api_base_url,
-            auth_base_url=auth_base_url,
+            site_base_url=site_base_url,
             username=username,
             password=password,
             token=token,
@@ -96,6 +98,7 @@ class TabroomClient:
         self._share_resource: ShareResource | None = None
         self._payment_resource: PaymentResource | None = None
         self._system_resource: SystemResource | None = None
+        self._extra_resource: ExtraResource | None = None
 
     def login(self, username: str, password: str) -> None:
         """
@@ -183,6 +186,13 @@ class TabroomClient:
             self._system_resource = SystemResource(self._base_client)
         return self._system_resource
 
+    @property
+    def extra(self) -> ExtraResource:
+        """Access extra status operations."""
+        if self._extra_resource is None:
+            self._extra_resource = ExtraResource(self._base_client)
+        return self._extra_resource
+
     def close(self) -> None:
         """Close the HTTP client connection."""
         self._base_client.close()
@@ -234,4 +244,7 @@ __all__ = [
     "ShareResource",
     "PaymentResource",
     "SystemResource",
+    "ExtraResource",
+    # Common Types
+    "DebateEvent",
 ]
