@@ -1,22 +1,31 @@
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
 [project]
-name = "tabroom-python"
+name = "tabroom"
 version = "0.1.0"
-description = "Python API client for Tabroom.com"
+authors = [{ name = "Henry Beveridge", email = "henrydbeveridge@gmail.com" }]
+description = "Python client for tabroom.com API"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "requests>=2.32.0",
-    "pydantic>=2.0.0",
-    "beautifulsoup4>=4.14.2",
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
 ]
+requires-python = ">=3.12"
+dependencies = ["requests>=2.32.0", "pydantic>=2.0.0", "beautifulsoup4>=4.14.2"]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "mypy>=1.8.0",
-]
+dev = ["pytest>=8.0.0", "mypy>=1.8.0"]
 
 [dependency-groups]
-dev = [
-    "pytest>=9.0.1",
-]
+dev = ["pytest>=9.0.1", "uv-build>=0.9.11"]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
