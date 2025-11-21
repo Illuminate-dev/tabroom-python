@@ -5,7 +5,6 @@ from typing import Any, TypeVar
 import requests
 from pydantic import BaseModel, ValidationError
 
-from .auth import CookieAuth
 from .exceptions import (
     TabroomAPIError,
     TabroomAuthError,
@@ -17,6 +16,8 @@ from .exceptions import (
 from .models import Err
 
 T = TypeVar("T", bound=BaseModel)
+
+COOKIE_NAME = "TabroomToken"
 
 
 class BaseClient:
@@ -50,9 +51,12 @@ class BaseClient:
         self.username = username
         self.password = password
 
-        self.auth = CookieAuth(token=token)
+        # Session automatically handles cookies
         self._client = requests.Session()
-        self._client.timeout = timeout
+
+        # Set token if provided
+        if token:
+            self._client.cookies.set(COOKIE_NAME, token, domain=".tabroom.com")
 
         # Auto-login if credentials provided and no token
         if auto_login and username and password and not token:
@@ -77,29 +81,32 @@ class BaseClient:
                 data={"username": username, "password": password},
             )
 
-            # Check if login was successful by looking for the cookie in the session
-            if CookieAuth.COOKIE_NAME in self._client.cookies:
-                token = self._client.cookies[CookieAuth.COOKIE_NAME]
-                self.auth.set_token(token)
-                self.username = username
-                self.password = password
-            else:
-                # Login failed - no cookie received
+            # Session automatically stores the cookie - just verify it exists
+            if COOKIE_NAME not in self._client.cookies:
                 raise TabroomAuthError(
                     "Login failed: No authentication cookie received",
                     response.status_code,
                 )
 
+            self.username = username
+            self.password = password
+
         except requests.RequestException as e:
             raise TabroomAuthError(f"Login request failed: {str(e)}")
 
     def logout(self) -> None:
-        """Clear authentication token."""
-        self.auth.clear_token()
+        """Clear authentication token from session."""
+        if COOKIE_NAME in self._client.cookies:
+            del self._client.cookies[COOKIE_NAME]
 
     def is_authenticated(self) -> bool:
-        """Check if client is authenticated."""
-        return self.auth.is_authenticated()
+        """Check if client has authentication token."""
+        return COOKIE_NAME in self._client.cookies
+
+    @property
+    def token(self) -> str | None:
+        """Get the current authentication token."""
+        return self._client.cookies.get(COOKIE_NAME)
 
     def _get_headers(self) -> dict[str, str]:
         """Get headers for requests."""
@@ -161,18 +168,14 @@ class BaseClient:
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
 
-        # Add authentication cookies
-        cookies = self.auth.get_cookies()
-        if "cookies" in kwargs:
-            cookies.update(kwargs.pop("cookies"))
-
         # Set timeout if not provided
         if "timeout" not in kwargs:
             kwargs["timeout"] = self.timeout
 
         try:
+            # Session automatically includes cookies
             response = self._client.request(
-                method, url, headers=headers, cookies=cookies, **kwargs
+                method, url, headers=headers, **kwargs
             )
 
             # Check for errors

@@ -118,7 +118,7 @@ class TabroomClient:
     @property
     def token(self) -> str | None:
         """Get the current authentication token."""
-        return self._base_client.auth.token
+        return self._base_client.token
 
     @property
     def user(self) -> UserResource:
