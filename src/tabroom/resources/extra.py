@@ -62,3 +62,38 @@ class ExtraResource:
             )
 
         return policy_teams
+
+    def get_teams_attending(
+        self, tournament_id: str, event_id: str
+    ) -> List[Dict[str, Any]]:
+        html = self._client.request_html(
+            f"/index/tourn/fields.mhtml?tourn_id={tournament_id}&event_id={event_id}",
+            "GET",
+        )
+
+        if html is None:
+            return []
+
+        soup = BeautifulSoup(html, "html.parser")
+
+        table = soup.find(id="fieldsort")
+        teams = []
+
+        for row in table.tbody.find_all("tr"):
+            school = (
+                row.contents[1].get_text().replace("\\t", "").replace("\\n", "").strip()
+            )
+            location = (
+                row.contents[3].get_text().replace("\\t", "").replace("\\n", "").strip()
+            )
+            entry = (
+                row.contents[5].get_text().replace("\\t", "").replace("\\n", "").strip()
+            )
+            code = (
+                row.contents[7].get_text().replace("\\t", "").replace("\\n", "").strip()
+            )
+            teams.append(
+                {"school": school, "location": location, "entry": entry, "code": code}
+            )
+
+        return teams

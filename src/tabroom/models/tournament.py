@@ -1,6 +1,6 @@
 """Tournament related models."""
 
-from typing import Any
+from typing import Any, Dict
 
 from pydantic import BaseModel, ConfigDict
 
@@ -27,9 +27,12 @@ class Invite(BaseModel):
     Note: API docs say this often contains additional data beyond just 'name'.
     """
 
-    model_config = ConfigDict(extra="allow")  # Allow additional fields not defined in schema
+    model_config = ConfigDict(
+        extra="allow"
+    )  # Allow additional fields not defined in schema
 
     name: str | None = None
+    tourn: Dict[str, Any] | None = None
 
 
 class Ad(BaseModel):
